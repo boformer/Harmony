@@ -25,13 +25,12 @@ namespace HarmonyLib
 						.Where(a => !a.FullName.StartsWith("Microsoft.VisualStudio"))
 						.SelectMany(a => a.GetLoadedModules())
 						.First(m => m.ModuleVersionId.ToString() == moduleGUID);
+					patchType = mdl.ResolveType(typeToken);
 					if (isGeneric)
 					{
 						var genericArguments = genericArgumentsInfo.Select(t => t.PatchType).ToArray();
-						patchType = mdl.ResolveType(typeToken, genericArguments, null);
+						patchType = patchType.MakeGenericType(genericArguments);
 					}
-					else
-						patchType = mdl.ResolveType(typeToken);
 				}
 				return patchType;
 			}

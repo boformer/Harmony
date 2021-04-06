@@ -289,7 +289,9 @@ namespace HarmonyLib
 #pragma warning disable CA2235
 		private string moduleGUID;
 #pragma warning restore CA2235
-		private bool isGeneric;
+		private bool isGenericType;
+		private bool isGenericMethod;
+
 		private TypeInfo[] typeGenericArgumentsInfo;
 		private TypeInfo[] methodGenericArgumentsInfo;
 
@@ -305,14 +307,20 @@ namespace HarmonyLib
 						.Where(a => !a.FullName.StartsWith("Microsoft.VisualStudio"))
 						.SelectMany(a => a.GetLoadedModules())
 						.First(m => m.ModuleVersionId.ToString() == moduleGUID);
-					if (isGeneric)
+
+					patchMethod = (MethodInfo)mdl.ResolveMethod(methodToken);
+					if(isGenericType)
 					{
-						var typeGenericTypes = typeGenericArgumentsInfo.Select(t => t.PatchType).ToArray();
-						var methodGenericTypes = methodGenericArgumentsInfo.Select(t => t.PatchType).ToArray();
-						patchMethod = (MethodInfo)mdl.ResolveMethod(methodToken, typeGenericTypes, methodGenericTypes);
+						var type = patchMethod.DeclaringType;
+						var genericArgs = typeGenericArgumentsInfo.Select(t => t.PatchType).ToArray();
+						type = type.MakeGenericType(genericArgs);
+						patchMethod = MethodBase.GetMethodFromHandle(patchMethod.MethodHandle, type.TypeHandle) as MethodInfo;
 					}
-					else
-						patchMethod = (MethodInfo)mdl.ResolveMethod(methodToken);
+					if(isGenericMethod)
+					{
+						var genericArgs = methodGenericArgumentsInfo.Select(t => t.PatchType).ToArray();
+						patchMethod = patchMethod.MakeGenericMethod(genericArgs);
+					}
 				}
 				return patchMethod;
 			}
@@ -321,12 +329,15 @@ namespace HarmonyLib
 				patchMethod = value;
 				methodToken = patchMethod.MetadataToken;
 				moduleGUID = patchMethod.Module.ModuleVersionId.ToString();
-				isGeneric = patchMethod.IsGenericMethod || patchMethod.DeclaringType.IsGenericType;
-				if(isGeneric)
-				{
+
+				isGenericType = patchMethod.DeclaringType.IsGenericType;
+				isGenericMethod = patchMethod.IsGenericMethod;
+
+				if (isGenericType)
 					typeGenericArgumentsInfo = patchMethod.DeclaringType.GetGenericArguments().Select(t => new TypeInfo(t)).ToArray();
+				if (isGenericMethod)
 					methodGenericArgumentsInfo = patchMethod.GetGenericArguments().Select(t => new TypeInfo(t)).ToArray();
-				}	
+
 			}
 		}
 
