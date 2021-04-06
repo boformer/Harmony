@@ -289,6 +289,9 @@ namespace HarmonyLib
 #pragma warning disable CA2235
 		private string moduleGUID;
 #pragma warning restore CA2235
+		private bool isGeneric;
+		private TypeInfo[] typeGenericArgumentsInfo;
+		private TypeInfo[] methodGenericArgumentsInfo;
 
 		/// <summary>The method of the static patch method</summary>
 		/// 
@@ -302,7 +305,14 @@ namespace HarmonyLib
 						.Where(a => !a.FullName.StartsWith("Microsoft.VisualStudio"))
 						.SelectMany(a => a.GetLoadedModules())
 						.First(m => m.ModuleVersionId.ToString() == moduleGUID);
-					patchMethod = (MethodInfo)mdl.ResolveMethod(methodToken);
+					if (isGeneric)
+					{
+						var typeGenericTypes = typeGenericArgumentsInfo.Select(t => t.PatchType).ToArray();
+						var methodGenericTypes = methodGenericArgumentsInfo.Select(t => t.PatchType).ToArray();
+						patchMethod = (MethodInfo)mdl.ResolveMethod(methodToken, typeGenericTypes, methodGenericTypes);
+					}
+					else
+						patchMethod = (MethodInfo)mdl.ResolveMethod(methodToken);
 				}
 				return patchMethod;
 			}
@@ -311,6 +321,12 @@ namespace HarmonyLib
 				patchMethod = value;
 				methodToken = patchMethod.MetadataToken;
 				moduleGUID = patchMethod.Module.ModuleVersionId.ToString();
+				isGeneric = patchMethod.IsGenericMethod || patchMethod.DeclaringType.IsGenericType;
+				if(isGeneric)
+				{
+					typeGenericArgumentsInfo = patchMethod.DeclaringType.GetGenericArguments().Select(t => new TypeInfo(t)).ToArray();
+					methodGenericArgumentsInfo = patchMethod.GetGenericArguments().Select(t => new TypeInfo(t)).ToArray();
+				}	
 			}
 		}
 
