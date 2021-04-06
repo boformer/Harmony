@@ -6,7 +6,7 @@ using System.Text;
 namespace HarmonyLib
 {
 	[Serializable]
-	public class TypeInfo
+	internal class TypeInfo
 	{
 		[NonSerialized]
 		private Type patchType;
